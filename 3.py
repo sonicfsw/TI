@@ -35,26 +35,21 @@ def huffman_tree(freq):
 def entropy(probabilities):
     return -sum(p * math.log2(p) for p in probabilities.values())
 
-# Функция расчета избыточности алфавита
-def redundancy_alphabet(entropy, alphabet_size):
-    return 1 - (entropy / math.log2(alphabet_size)) if alphabet_size > 1 else 0
+# Функция средней длины кода
+def average_code_length(code_dict, probabilities):
+    return sum(len(code_dict[char]) * prob for char, prob in probabilities.items())
 
 # Функция расчета избыточности кода
 def redundancy_code(entropy, avg_length):
     return avg_length - entropy
 
+# Функция расчета эффективности кода
+def code_efficiency(entropy, avg_length):
+    return entropy / avg_length if avg_length > 0 else 0
+
 # Функция расчета вектора Крафта
 def kraft_inequality(code_dict):
     return sum(2 ** -len(code) for code in code_dict.values())
-
-# Функция генерации блочных кодов
-def block_codes(probabilities, block_size):
-    alphabet = list(probabilities.keys())
-    combinations = [''.join(p) for p in product(alphabet, repeat=block_size)]
-    block_freq = collections.Counter(combinations)
-    total_blocks = sum(block_freq.values())
-    block_prob = {block: count / total_blocks for block, count in block_freq.items()}
-    return block_prob
 
 # Чтение текстов
 with open("fiction_text.txt", "r", encoding="utf-8") as f:
@@ -69,6 +64,24 @@ science_freq, science_probs = frequency_analysis(science_text)
 fiction_huffman = huffman_tree(fiction_freq)
 science_huffman = huffman_tree(science_freq)
 
+fiction_entropy = entropy(fiction_probs)
+science_entropy = entropy(science_probs)
+
+fiction_avg_length = average_code_length(fiction_huffman, fiction_probs)
+science_avg_length = average_code_length(science_huffman, science_probs)
+
+fiction_redundancy = redundancy_code(fiction_entropy, fiction_avg_length)
+science_redundancy = redundancy_code(science_entropy, science_avg_length)
+
+fiction_efficiency = code_efficiency(fiction_entropy, fiction_avg_length)
+science_efficiency = code_efficiency(science_entropy, science_avg_length)
+
+fiction_kraft = kraft_inequality(fiction_huffman)
+science_kraft = kraft_inequality(science_huffman)
+
+fiction_chars_no_spaces = count_chars_without_spaces(fiction_text)
+science_chars_no_spaces = count_chars_without_spaces(science_text)
+
 # Графики
 plt.figure(figsize=(10, 5))
 plt.bar(fiction_probs.keys(), fiction_probs.values(), alpha=0.5, label='Художественный текст')
@@ -80,8 +93,6 @@ plt.legend()
 plt.show()
 
 # График вектора Крафта
-fiction_kraft = kraft_inequality(fiction_huffman)
-science_kraft = kraft_inequality(science_huffman)
 plt.figure(figsize=(6, 4))
 plt.bar(["Художественный", "Научный"], [fiction_kraft, science_kraft], color=['blue', 'orange'])
 plt.xlabel("Тип текста")
@@ -90,8 +101,6 @@ plt.title("Сравнение значений вектора Крафта")
 plt.show()
 
 # График энтропии
-fiction_entropy = entropy(fiction_probs)
-science_entropy = entropy(science_probs)
 plt.figure(figsize=(6, 4))
 plt.bar(["Художественный", "Научный"], [fiction_entropy, science_entropy], color=['blue', 'orange'])
 plt.xlabel("Тип текста")
@@ -99,30 +108,12 @@ plt.ylabel("Энтропия")
 plt.title("Сравнение энтропии текстов")
 plt.show()
 
-# Подготовка таблицы кодов Хаффмана
-def generate_huffman_table(freq, huffman_codes):
-    table = []
-    for char, count in freq.items():
-        probability = count / sum(freq.values())
-        code = huffman_codes[char]
-        bit_columns = list(code)
-        table.append([char, count, probability] + bit_columns + [code])
-    return table
-
-fiction_huffman_table = generate_huffman_table(fiction_freq, fiction_huffman)
-science_huffman_table = generate_huffman_table(science_freq, science_huffman)
-
-# Сохранение таблицы Хаффмана в CSV
-huffman_filename = "huffman_codes.csv"
-with open(huffman_filename, "w", newline="", encoding="utf-8") as csvfile:
+# Сохранение всех характеристик в CSV
+csv_filename = "text_analysis_results.csv"
+with open(csv_filename, "w", newline="", encoding="utf-8") as csvfile:
     writer = csv.writer(csvfile)
-    writer.writerow(["Буква", "Кол-во", "Частота"] + [str(i+1) for i in range(10)] + ["Код"])
-    writer.writerow(["Художественный текст"])
-    for row in fiction_huffman_table:
-        writer.writerow(row)
-    writer.writerow([])
-    writer.writerow(["Научный текст"])
-    for row in science_huffman_table:
-        writer.writerow(row)
+    writer.writerow(["Тип текста", "Количество символов без пробелов", "Энтропия", "Средняя длина кода", "Избыточность кода", "Эффективность кода", "Вектор Крафта"])
+    writer.writerow(["Художественный", fiction_chars_no_spaces, fiction_entropy, fiction_avg_length, fiction_redundancy, fiction_efficiency, fiction_kraft])
+    writer.writerow(["Научный", science_chars_no_spaces, science_entropy, science_avg_length, science_redundancy, science_efficiency, science_kraft])
 
-print(f"Таблица кодов Хаффмана сохранена в {huffman_filename}")
+print(f"Результаты анализа сохранены в {csv_filename}")
